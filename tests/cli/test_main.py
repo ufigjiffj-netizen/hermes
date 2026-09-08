@@ -110,7 +110,7 @@ def test_main_keyboard_interrupt():
         with (
             patch("asyncio.new_event_loop", return_value=loop_mock),
             patch("asyncio.set_event_loop"),
-            patch("sys.argv", ["hermes"]),
+            patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
             patch("hermes.cli.main.run_app"),
             patch("hermes.cli.main.shutdown"),
         ):
@@ -131,11 +131,18 @@ def test_main_signal_not_implemented():
         with (
             patch("asyncio.new_event_loop", return_value=loop_mock),
             patch("asyncio.set_event_loop"),
-            patch("sys.argv", ["hermes"]),
+            patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
             patch("hermes.cli.main.run_app"),
         ):
             main()
             loop_mock.run_until_complete.assert_called_once()
+
+
+def test_main_no_args():
+    with patch("sys.argv", ["hermes"]):
+        with pytest.raises(SystemExit) as excinfo:
+            main()
+        assert excinfo.value.code == 0
 
 
 def test_module_execution():
