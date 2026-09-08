@@ -1,0 +1,15 @@
+# Hermes Configuration File
+# Managed by Ansible
+
+funpay:
+  golden_key: "{{ funpay_golden_key }}"
+  proxy: ""
+
+storage:
+  db_path: "{{ app_dir }}/data/hermes.db"
+
+lots:
+  bump_interval: 10.0
+
+orders:
+  poll_interval: 5.0

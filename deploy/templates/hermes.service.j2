@@ -1,0 +1,14 @@
+[Unit]
+Description=Hermes FunPay Bot
+After=network.target
+
+[Service]
+User={{ app_user }}
+Group={{ app_user }}
+WorkingDirectory={{ app_dir }}
+ExecStart={{ app_dir }}/venv/bin/python -m hermes.cli.main --config {{ app_dir }}/config.yaml
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
