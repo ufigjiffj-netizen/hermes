@@ -1,0 +1,24 @@
+# Tasks
+
+- [x] **Task 1: Dependencies Setup**
+  - Add `beautifulsoup4` and `types-beautifulsoup4` to requirements files.
+  - Verification: Run `pip install -r requirements.txt` and `pip install -r requirements-dev.txt`.
+- [x] **Task 2: Catalog Models & Parsers**
+  - Create `hermes/catalog/models.py` with Dataclasses for Category/Listing.
+  - Create `hermes/catalog/parsers.py` with BS4 logic to extract data.
+  - Create tests in `tests/catalog/test_parsers.py`.
+  - Verification: `pytest tests/catalog/test_parsers.py` passes.
+- [x] **Task 3: Catalog Client**
+  - Create `hermes/catalog/client.py` using `hermes.core.network.Client`.
+  - Create `tests/catalog/test_client.py` with `aioresponses` mocks.
+  - Verification: `pytest tests/catalog/ --cov=hermes.catalog --cov-fail-under=100` passes.
+- [x] **Task 4: Support Module**
+  - Create `hermes/support/models.py` and `hermes/support/client.py`.
+  - Implement ticket fetching and replying.
+  - Create `tests/support/test_client.py`.
+  - Verification: `pytest tests/support/ --cov=hermes.support --cov-fail-under=100` passes.
+- [x] **Task 5: Chat Module**
+  - Create `hermes/chat/models.py` and `hermes/chat/client.py`.
+  - Implement fetching and sending messages.
+  - Create `tests/chat/test_client.py`.
+  - Verification: `pytest tests/chat/ --cov=hermes.chat --cov-fail-under=100` passes.

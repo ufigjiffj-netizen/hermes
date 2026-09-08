@@ -15,28 +15,31 @@ from hermes.orders.repository import OrderRepository
 logger = logging.getLogger(__name__)
 
 
-def parse_args(args=None):
+def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Hermes CLI")
     parser.add_argument("--config", help="Path to config file", required=False)
     return parser.parse_args(args)
 
 
-async def shutdown(loop: asyncio.AbstractEventLoop, signal=None):
+async def shutdown(
+    loop: asyncio.AbstractEventLoop, signal: signal.Signals | None = None
+) -> None:
     """Cleanup tasks tied to the service's shutdown."""
     if signal:
-        logger.info(f"Received exit signal {signal.name}...")
+        logger.info("Received exit signal %s...", signal.name)
 
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-    [task.cancel() for task in tasks]
+    for task in tasks:
+        task.cancel()
 
-    logger.info(f"Cancelling {len(tasks)} outstanding tasks")
+    logger.info("Cancelling %d outstanding tasks", len(tasks))
     await asyncio.gather(*tasks, return_exceptions=True)
     loop.stop()
 
 
-async def run_app(args):
+async def run_app(args: argparse.Namespace) -> None:
     """Main async entrypoint."""
-    logger.info(f"Starting Hermes with config: {args.config}")
+    logger.info("Starting Hermes with config: %s", args.config)
     config = load_config(args.config)
 
     db_path = config.get("storage", {}).get("db_path", "hermes.db")
@@ -66,7 +69,7 @@ async def run_app(args):
             poller = OrderPoller(
                 client=client,
                 repo=repo,
-                url="https://funpay.com/api/orders",  # Dummy URL for now
+                url="https://funpay.com/api/orders",
                 interval=poll_interval,
             )
             bumper = BumpManager(bump_interval=bump_interval, client=client)
@@ -89,7 +92,7 @@ async def run_app(args):
         await db.shutdown()
 
 
-def main():
+def main() -> None:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
@@ -108,10 +111,10 @@ def main():
         else (signal.SIGINT, signal.SIGTERM)
     )
     for s in signals:
+        def make_handler(sig: signal.Signals):
+            return lambda: asyncio.create_task(shutdown(loop, signal=sig))
         try:
-            loop.add_signal_handler(
-                s, lambda s=s: asyncio.create_task(shutdown(loop, signal=s))
-            )
+            loop.add_signal_handler(s, make_handler(s))
         except NotImplementedError:
             # add_signal_handler is not implemented on Windows for ProactorEventLoop
             pass

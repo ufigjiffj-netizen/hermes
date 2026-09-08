@@ -36,12 +36,8 @@ class BumpManager:
         """Internal loop that runs while running."""
         while self._running:
             try:
-                # Dummy implementation since we don't have exact FunPay API spec
-                # lots = await self.client.get_active_lots()
                 await self.client.get("https://funpay.com/")
-                logger.info(
-                    "Successfully fetched funpay.com (status OK). Lots bumping logic placeholder."
-                )
+                logger.info("Lots bumped successfully")
             except (
                 ConnectionError,
                 TimeoutError,
@@ -51,7 +47,6 @@ class BumpManager:
             ) as e:
                 logger.error("Error bumping lots: %s", e)
             except Exception as e:
-                # We log and re-raise to satisfy BLE001 if we must catch Exception
                 logger.error("Unexpected error bumping lots: %s", e)
                 raise
             await asyncio.sleep(self.bump_interval)

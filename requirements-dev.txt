@@ -8,3 +8,6 @@ aiosqlite>=0.20.0
 PyYAML>=6.0.1
 aioresponses>=0.7.6
 types-PyYAML>=6.0.12
+types-beautifulsoup4>=4.12.0
+  
+ 
