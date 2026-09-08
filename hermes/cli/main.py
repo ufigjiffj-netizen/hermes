@@ -4,13 +4,13 @@ import logging
 import signal
 import sys
 
+from hermes.core.auth import Authenticator
 from hermes.core.config import load_config
 from hermes.core.network import HttpClient
-from hermes.core.auth import Authenticator
 from hermes.core.storage import DatabaseManager
-from hermes.orders.repository import OrderRepository
-from hermes.orders.poller import OrderPoller
 from hermes.lots.bump import BumpManager
+from hermes.orders.poller import OrderPoller
+from hermes.orders.repository import OrderRepository
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,11 @@ async def run_app(args):
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     args = parse_args(sys.argv[1:])
-
+    # If no command‑line arguments are supplied, show a short usage annotation.
+    if len(sys.argv) <= 1:
+        # Simple guidance for users invoking hermes without any flags.
+        print("Usage: hermes [--config <path>]\n\nRun 'hermes -h' for full options.")
+        return
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 

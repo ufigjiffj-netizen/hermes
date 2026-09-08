@@ -1,11 +1,12 @@
 import asyncio
-from unittest.mock import patch, MagicMock, AsyncMock
+import logging
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 @pytest.mark.asyncio
 async def test_debug():
-    from hermes.cli.main import run_app, parse_args
-    import logging
+    from hermes.cli.main import parse_args, run_app
     logging.basicConfig(level=logging.INFO)
     args = parse_args(["--config", "dummy.yaml"])
     with (
@@ -33,7 +34,7 @@ async def test_debug():
         task.cancel()
         try:
             await task
-        except BaseException as e:
+        except Exception as e:
             print("ERROR", repr(e))
 
 asyncio.run(test_debug())

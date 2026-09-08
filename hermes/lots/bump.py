@@ -38,7 +38,7 @@ class BumpManager:
             try:
                 # Dummy implementation since we don't have exact FunPay API spec
                 # lots = await self.client.get_active_lots()
-                response = await self.client.get("https://funpay.com/")
+                await self.client.get("https://funpay.com/")
                 logger.info("Successfully fetched funpay.com (status OK). Lots bumping logic placeholder.")
             except (
                 ConnectionError,
