@@ -36,7 +36,7 @@ class BumpManager:
         """Internal loop that runs while running."""
         while self._running:
             try:
-                await self.client.get("https://funpay.com/")
+                await self.client.get("https://funpay.com/", return_text=True)
                 logger.info("Lots bumped successfully")
             except (
                 ConnectionError,
