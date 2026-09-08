@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -64,7 +63,6 @@ async def test_order_poller_run_loop(
     poller = OrderPoller(
         client=mock_client, repo=mock_repo, url="http://test.funpay.com", interval=5.0
     )
-
 
     mock_sleep.side_effect = lambda x: poller.stop()
 
