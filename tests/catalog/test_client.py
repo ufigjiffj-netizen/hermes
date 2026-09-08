@@ -45,3 +45,17 @@ async def test_get_commission():
             )
             info = await client.get_commission()
             assert info.rate == 5.5
+
+
+@pytest.mark.asyncio
+async def test_get_listing_details():
+    async with HttpClient() as http_client:
+        client = CatalogClient(http_client)
+        with aioresponses() as m:
+            m.get(
+                "https://funpay.com/lots/123/",
+                body='<html><body><div class="param-item"><h5>Подробное описание</h5><div>detailed</div></div><div class="param-item"><h5>Краткое описание</h5><div>short</div></div></body></html>',
+            )
+            details = await client.get_listing_details("https://funpay.com/lots/123/")
+            assert details.detailed_description == "detailed"
+            assert details.short_description == "short"

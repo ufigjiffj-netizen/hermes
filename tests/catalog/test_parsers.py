@@ -4,6 +4,7 @@ from hermes.catalog.parsers import (
     ParsingError,
     parse_categories,
     parse_commission,
+    parse_listing_details,
     parse_listings,
 )
 
@@ -78,3 +79,34 @@ def test_parse_commission():
     html_empty = "<html><body></body></html>"
     info_empty = parse_commission(html_empty)
     assert info_empty.rate == 0.0
+
+
+def test_parse_listing_details():
+    html_valid = """
+    <html><body>
+        <div class="param-item">
+            <h5>Подробное описание</h5>
+            <div>This is detailed</div>
+        </div>
+        <div class="param-item">
+            <h5>Краткое описание</h5>
+            <div>This is short</div>
+        </div>
+        <div class="param-item">
+            <h5>Подробное описание</h5>
+            Direct detailed text
+        </div>
+        <div class="param-item">
+            <h5>Краткое описание</h5>
+            Direct short text
+        </div>
+        <div class="param-item">
+            No h5 here
+        </div>
+    </body></html>
+    """
+    details = parse_listing_details(html_valid)
+    # The parser loops through and overwrites if same title is found.
+    # Our HTML has standard div then direct text, so direct text wins.
+    assert details.detailed_description == "Direct detailed text"
+    assert details.short_description == "Direct short text"
