@@ -4,6 +4,7 @@ import logging
 import os
 import signal
 import sys
+from collections.abc import Callable
 
 from hermes.core.auth import Authenticator
 from hermes.core.config import load_config
@@ -33,13 +34,12 @@ async def shutdown(
     if signal:
         logger.info("Received exit signal %s...", signal.name)
 
-    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+    tasks = [t for t in asyncio.all_tasks(loop) if t is not asyncio.current_task()]
     for task in tasks:
         task.cancel()
 
     logger.info("Cancelling %d outstanding tasks", len(tasks))
     await asyncio.gather(*tasks, return_exceptions=True)
-    loop.stop()
 
 
 async def run_app(args: argparse.Namespace) -> None:
@@ -107,6 +107,7 @@ async def run_app(args: argparse.Namespace) -> None:
                 await asyncio.sleep(3600)
     except asyncio.CancelledError:
         logger.info("Shutting down components...")
+    finally:
         if poller:
             poller.stop()
         if bumper:
@@ -114,7 +115,6 @@ async def run_app(args: argparse.Namespace) -> None:
         if poller_task:
             poller_task.cancel()
             await asyncio.gather(poller_task, return_exceptions=True)
-    finally:
         await db.shutdown()
 
 
@@ -126,17 +126,22 @@ def main() -> None:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    # Setup signal handlers
+    app_task: asyncio.Task[None] | None = None
+
+    def handle_signal(sig: signal.Signals) -> None:
+        logger.info("Received exit signal %s...", sig.name)
+        if app_task and not app_task.done():
+            app_task.cancel()
+
+    def make_handler(sig: signal.Signals) -> Callable[[], None]:
+        return lambda: handle_signal(sig)
+
     signals = (
         (getattr(signal, "SIGHUP", signal.SIGTERM), signal.SIGTERM, signal.SIGINT)
         if sys.platform != "win32"
         else (signal.SIGINT, signal.SIGTERM)
     )
     for s in signals:
-
-        def make_handler(sig: signal.Signals):
-            return lambda: asyncio.create_task(shutdown(loop, signal=sig))
-
         try:
             loop.add_signal_handler(s, make_handler(s))
         except NotImplementedError:
@@ -144,11 +149,19 @@ def main() -> None:
             pass
 
     try:
-        loop.run_until_complete(run_app(args))
-    except KeyboardInterrupt:
+        app_task = loop.create_task(run_app(args))
+        loop.run_until_complete(app_task)
+    except (KeyboardInterrupt, asyncio.CancelledError):
         logger.info("Received KeyboardInterrupt")
+        if app_task and not app_task.done():
+            app_task.cancel()
         loop.run_until_complete(shutdown(loop))
     finally:
+        pending = [t for t in asyncio.all_tasks(loop) if not t.done()]
+        if pending:
+            for t in pending:
+                t.cancel()
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
         loop.close()
         logger.info("Successfully shutdown Hermes")
 

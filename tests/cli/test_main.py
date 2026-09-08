@@ -123,16 +123,17 @@ def test_main_keyboard_interrupt():
         loop_mock = MagicMock()
         calls: list[object] = []
 
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        loop_mock.create_task.return_value = mock_task
+
         def _side_effect(coro: object) -> None:
-            if asyncio.iscoroutine(coro):
-                coro.close()
             calls.append(coro)
             if len(calls) == 1:
                 raise KeyboardInterrupt()
 
         loop_mock.run_until_complete.side_effect = _side_effect
 
-        # Patch run_app and shutdown so they don't produce unawaited coroutines
         with (
             patch("asyncio.new_event_loop", return_value=loop_mock),
             patch("asyncio.set_event_loop"),
@@ -141,8 +142,66 @@ def test_main_keyboard_interrupt():
             patch("hermes.cli.main.shutdown", side_effect=_dummy_run_app),
         ):
             main()
+            mock_task.cancel.assert_called_once()
             assert loop_mock.run_until_complete.call_count == 2
             loop_mock.close.assert_called_once()
+
+
+def test_main_signal_handler_invoked():
+    with patch("hermes.cli.main.parse_args") as mock_parse:
+        mock_parse.return_value.config = "dummy.yaml"
+
+        loop_mock = MagicMock()
+        handlers = {}
+
+        def _add_handler(sig, handler):
+            handlers[sig] = handler
+
+        loop_mock.add_signal_handler.side_effect = _add_handler
+
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        loop_mock.create_task.return_value = mock_task
+
+        def _side_effect(coro: object) -> None:
+            sig_to_test = (
+                signal.SIGTERM
+                if signal.SIGTERM in handlers
+                else next(iter(handlers.keys()))
+            )
+            handlers[sig_to_test]()
+
+        loop_mock.run_until_complete.side_effect = _side_effect
+
+        with (
+            patch("asyncio.new_event_loop", return_value=loop_mock),
+            patch("asyncio.set_event_loop"),
+            patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
+            patch("hermes.cli.main.run_app", side_effect=_dummy_run_app),
+        ):
+            main()
+            mock_task.cancel.assert_called_once()
+
+
+def test_main_cleans_pending_tasks_in_finally():
+    with patch("hermes.cli.main.parse_args") as mock_parse:
+        mock_parse.return_value.config = "dummy.yaml"
+
+        loop_mock = MagicMock()
+        mock_pending_task = MagicMock()
+        mock_pending_task.done.return_value = False
+
+        with (
+            patch("asyncio.new_event_loop", return_value=loop_mock),
+            patch("asyncio.set_event_loop"),
+            patch("asyncio.all_tasks", return_value={mock_pending_task}),
+            patch("asyncio.gather", new_callable=AsyncMock) as mock_gather,
+            patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
+            patch("hermes.cli.main.run_app", side_effect=_dummy_run_app),
+        ):
+            main()
+            mock_pending_task.cancel.assert_called_once()
+            mock_gather.assert_called_once()
 
 
 def test_main_signal_not_implemented():
@@ -152,12 +211,6 @@ def test_main_signal_not_implemented():
 
         loop_mock = MagicMock()
         loop_mock.add_signal_handler.side_effect = NotImplementedError()
-
-        def _clean_complete(coro):
-            if asyncio.iscoroutine(coro):
-                coro.close()
-
-        loop_mock.run_until_complete.side_effect = _clean_complete
 
         with (
             patch("asyncio.new_event_loop", return_value=loop_mock),

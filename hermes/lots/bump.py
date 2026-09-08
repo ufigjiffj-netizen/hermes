@@ -2,6 +2,8 @@ import asyncio
 import logging
 from typing import Any
 
+import aiohttp
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,23 +29,35 @@ class BumpManager:
         url = "https://funpay.com/lots/raise"
         headers = {"X-Requested-With": "XMLHttpRequest"}
         data = {"node_id": node_id}
-        await self.client.post(url, headers=headers, data=data)
-        logger.info("Lots bumped successfully for node %s", node_id)
-        return True
+        try:
+            await self.client.post(url, headers=headers, data=data)
+            logger.info("Lots bumped successfully for node %s", node_id)
+            return True
+        except aiohttp.ClientResponseError as e:
+            if e.status == 428:
+                logger.warning(
+                    "Lots for node %s cannot be bumped yet (cooldown active / HTTP 428)",
+                    node_id,
+                )
+                return False
+            logger.error("HTTP error bumping lots for node %s: %s", node_id, e)
+            raise
 
     async def bump_all(self) -> list[str]:
         """Bumps all configured nodes."""
         bumped = []
         for node_id in self.node_ids:
             try:
-                await self.bump_node(node_id)
-                bumped.append(node_id)
+                success = await self.bump_node(node_id)
+                if success:
+                    bumped.append(node_id)
             except (
                 ConnectionError,
                 TimeoutError,
                 ValueError,
                 RuntimeError,
                 TypeError,
+                aiohttp.ClientError,
             ) as e:
                 logger.error("Error bumping node %s: %s", node_id, e)
         return bumped
@@ -62,6 +76,15 @@ class BumpManager:
                 await self._task
             except asyncio.CancelledError:
                 pass
+            except (
+                ConnectionError,
+                TimeoutError,
+                ValueError,
+                RuntimeError,
+                TypeError,
+                aiohttp.ClientError,
+            ) as e:
+                logger.debug("Bumper task error during stop: %s", e)
             self._task = None
 
     async def _loop(self) -> None:
@@ -78,9 +101,9 @@ class BumpManager:
                 ValueError,
                 RuntimeError,
                 TypeError,
+                aiohttp.ClientError,
             ) as e:
                 logger.error("Error in bump loop: %s", e)
-            except Exception as e:
-                logger.error("Unexpected error bumping lots: %s", e)
-                raise
+            except asyncio.CancelledError:
+                break
             await asyncio.sleep(self.bump_interval)

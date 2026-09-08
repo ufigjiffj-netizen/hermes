@@ -10,7 +10,7 @@ def parse_tickets(html: str) -> list[Ticket]:
         a_tag = row.find("a")
         if not a_tag:
             continue
-        url = a_tag.get("href", "")
+        url = str(a_tag.get("href") or "")
         t_id = url.strip("/").split("/")[-1] if url else ""
 
         subj_div = row.find("div", class_="ticket-subject")
@@ -27,7 +27,7 @@ def parse_ticket_messages(html: str) -> list[TicketMessage]:
     soup = BeautifulSoup(html, "html.parser")
     messages = []
     for msg in soup.find_all("div", class_="message-item"):
-        m_id = msg.get("data-id", "")
+        m_id = str(msg.get("data-id") or "")
 
         auth_div = msg.find("div", class_="message-author")
         author = auth_div.text.strip() if auth_div else "Unknown"

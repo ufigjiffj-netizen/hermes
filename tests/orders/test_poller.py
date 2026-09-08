@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -126,3 +127,46 @@ async def test_order_poller_run_loop_callback_error(
     await poller.run()
 
     mock_callback.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_order_poller_run_loop_client_error(
+    mock_sleep: AsyncMock, mock_repo: AsyncMock, mock_client: AsyncMock
+) -> None:
+    import aiohttp
+    from aiohttp import RequestInfo
+    from multidict import CIMultiDict, CIMultiDictProxy
+    from yarl import URL
+
+    req_info = RequestInfo(
+        url=URL("http://test.funpay.com"),
+        method="GET",
+        headers=CIMultiDictProxy(CIMultiDict()),
+        real_url=URL("http://test.funpay.com"),
+    )
+    mock_client.get.side_effect = aiohttp.ClientResponseError(
+        request_info=req_info, history=(), status=404, message="Not Found"
+    )
+    poller = OrderPoller(
+        client=mock_client, repo=mock_repo, url="http://test.funpay.com", interval=1.0
+    )
+
+    mock_sleep.side_effect = lambda x: poller.stop()
+
+    # Should not raise even if client returns 404
+    await poller.run()
+    mock_client.get.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_order_poller_run_loop_cancelled(
+    mock_repo: AsyncMock, mock_client: AsyncMock
+) -> None:
+    mock_client.get.side_effect = asyncio.CancelledError()
+    poller = OrderPoller(
+        client=mock_client, repo=mock_repo, url="http://test.funpay.com", interval=1.0
+    )
+
+    # Should exit cleanly when cancelled
+    await poller.run()

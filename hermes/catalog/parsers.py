@@ -1,3 +1,4 @@
+import copy
 from typing import Any
 
 from bs4 import BeautifulSoup
@@ -15,7 +16,7 @@ def parse_categories(html: str) -> list[Category]:
     for elem in soup.find_all("div", class_="game-item"):
         a_tag = elem.find("a")
         if a_tag and "href" in a_tag.attrs:
-            url = a_tag["href"]
+            url = str(a_tag["href"])
             name_div = elem.find("div", class_="game-title")
             name = name_div.text.strip() if name_div else "Unknown"
             cat_id = url.strip("/").split("/")[-1] if url else ""
@@ -28,7 +29,7 @@ def parse_listings(html: str) -> list[Listing]:
     soup = BeautifulSoup(html, "html.parser")
     listings = []
     for elem in soup.find_all("a", class_="tc-item"):
-        url = elem.get("href", "")
+        url = str(elem.get("href", ""))
         list_id = url.strip("/").split("/")[-1] if url else ""
 
         title_div = elem.find("div", class_="tc-server")
@@ -39,6 +40,7 @@ def parse_listings(html: str) -> list[Listing]:
 
         price_div = elem.find("div", class_="tc-price")
         price_text = price_div.text.strip() if price_div else "0"
+        price_text = price_text.replace(",", ".")
         try:
             price = float("".join(c for c in price_text if c.isdigit() or c == "."))
         except ValueError:
@@ -104,8 +106,9 @@ def parse_listing_details(html: str) -> ListingDetails:
         # FunPay sometimes puts text directly in param-item when there is no div inside
         if not text_div:
             # We can extract text excluding h5
-            clone = param
-            clone.h5.decompose()
+            clone = copy.copy(param)
+            if clone.h5 is not None:
+                clone.h5.decompose()
             text = clone.text.strip()
             if title == "Подробное описание":
                 detailed = text

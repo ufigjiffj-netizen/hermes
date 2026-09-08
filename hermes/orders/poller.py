@@ -3,6 +3,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+import aiohttp
+
 from hermes.core.network import HttpClient
 from hermes.orders.repository import OrderRepository
 
@@ -49,22 +51,35 @@ class OrderPoller:
         """Runs the poller in an async loop."""
         self._running = True
         while self._running:
-            new_orders = await self.poll_once()
-            if self.on_new_order and new_orders:
-                for order in new_orders:
-                    try:
-                        await self.on_new_order(order)
-                    except (
-                        ConnectionError,
-                        TimeoutError,
-                        ValueError,
-                        RuntimeError,
-                        TypeError,
-                        KeyError,
-                    ) as e:
-                        logger.error(
-                            "Error processing order %s: %s", order.get("id"), e
-                        )
+            try:
+                new_orders = await self.poll_once()
+                if self.on_new_order and new_orders:
+                    for order in new_orders:
+                        try:
+                            await self.on_new_order(order)
+                        except (
+                            ConnectionError,
+                            TimeoutError,
+                            ValueError,
+                            RuntimeError,
+                            TypeError,
+                            KeyError,
+                        ) as e:
+                            logger.error(
+                                "Error processing order %s: %s", order.get("id"), e
+                            )
+            except (
+                ConnectionError,
+                TimeoutError,
+                ValueError,
+                RuntimeError,
+                TypeError,
+                KeyError,
+                aiohttp.ClientError,
+            ) as e:
+                logger.error("Error polling orders from %s: %s", self.url, e)
+            except asyncio.CancelledError:
+                break
 
             await asyncio.sleep(self.interval)
 
