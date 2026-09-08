@@ -82,6 +82,16 @@
         - Reload systemd
         - Restart Hermes
 
+    - name: Create global hermes CLI wrapper
+      copy:
+        dest: /usr/local/bin/hermes
+        content: |
+          #!/bin/bash
+          cd {{ app_dir }} && {{ app_dir }}/venv/bin/python -m hermes.cli.main "$@"
+        mode: '0755'
+        owner: root
+        group: root
+
     - name: Enable and start Hermes service
       systemd:
         name: hermes
