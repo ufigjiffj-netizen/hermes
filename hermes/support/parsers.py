@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from .models import Ticket, TicketMessage
 
@@ -47,8 +47,8 @@ def parse_ticket_messages(html: str) -> list[TicketMessage]:
 def parse_csrf_token(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
     csrf_input = soup.find("input", {"name": "csrf_token"})
-    if csrf_input and hasattr(csrf_input, "get"):
-        val = getattr(csrf_input, "get")("value", "")
+    if isinstance(csrf_input, Tag):
+        val = csrf_input.get("value", "")
         if isinstance(val, str):
             return val
         if isinstance(val, list) and val:
