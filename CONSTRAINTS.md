@@ -28,8 +28,13 @@ Last reviewed: 2026-09-08
 - **No Heavy Queues**: Do not use Redis, RabbitMQ, Kafka, Celery. Use `asyncio.Queue` or similar built-ins.
 - **Config**: YAML based configuration. Boolean directives must use `enabled: true/false`.
 - **Plugins**: Must be separate from Core (`hermes/core` vs `hermes/plugins`).
-- **Language**: All code comments and variables MUST be in English.
-- **Git & Versioning**: Follow Git Flow (`develop`, `feature/*`). Branch names must be conventional. Use Semantic Versioning. Commit messages and PR descriptions must be concise and short.
+- **Language**: All specs, code comments, and variable names MUST be in English.
+- **Git Flow & Versioning**:
+  - Always branch off `dev` for new features (e.g., `feat/feature-name`).
+  - Open a PR to `dev`, test, review, and squash-merge it.
+  - Delete feature branches immediately after merging into `dev`.
+  - Commits must use Conventional Commits (e.g., `feat: ...`, `fix: ...`) and be short and concise.
+  - Create a PR from `dev` to `main` for releases. Tag the release on `main` using Semantic Versioning (e.g., `v1.2.0`), which will automatically trigger the Release workflow and generate a Changelog.
 
 ## Lifecycle Scripts (to be added to pyproject.toml / Makefile)
 
