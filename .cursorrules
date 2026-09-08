@@ -1,0 +1,9 @@
+# Hermes Rules
+
+Read `CONSTRAINTS.md` before writing code. Do not weaken it to make a change pass.
+
+Additionally:
+- Follow Python best practices.
+- Ensure all logic is async where I/O is involved.
+- Maintain 100% test coverage.
+- Write tests *before* implementing the code (TDD).
