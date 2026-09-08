@@ -111,8 +111,10 @@ def main() -> None:
         else (signal.SIGINT, signal.SIGTERM)
     )
     for s in signals:
+
         def make_handler(sig: signal.Signals):
             return lambda: asyncio.create_task(shutdown(loop, signal=sig))
+
         try:
             loop.add_signal_handler(s, make_handler(s))
         except NotImplementedError:
