@@ -65,10 +65,6 @@ async def test_order_poller_run_loop(
         client=mock_client, repo=mock_repo, url="http://test.funpay.com", interval=5.0
     )
 
-    # We will stop the loop after one iteration by side-effecting sleep
-    def side_effect(*args, **kwargs):
-        poller.stop()
-        return asyncio.Future()  # this is ignored because we just want to stop
 
     mock_sleep.side_effect = lambda x: poller.stop()
 
