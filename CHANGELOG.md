@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.0.0] - 2026-09-08
+### Added
+* `hermes.cli`: Added CLI entrypoint with graceful shutdown (`feat: add cli entrypoint`)
+* `hermes.lots`: Added async lots bump manager (`feat: add async lots bump manager`)
+* `hermes.orders`: Added async orders poller and delivery manager (`feat: add async orders poller and delivery manager`)
+
+### Fixed
+* CI: Added `types-PyYAML` to fix mypy in CI.
+* Tests: Removed unused dead code to restore 100% test coverage.
+* CI: Fixed `pip` cache dependency path.
+
 ## [v0.1.0] - 2026-09-08
 
 ### Added
