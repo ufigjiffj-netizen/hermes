@@ -1,8 +1,12 @@
 from hermes.core.network import HttpClient
 
 from .models import Category, CommissionInfo, Listing, ListingDetails
-from .parsers import parse_categories, parse_commission, parse_listings, parse_listing_details
-
+from .parsers import (
+    parse_categories,
+    parse_commission,
+    parse_listing_details,
+    parse_listings,
+)
 
 class CatalogClient:
     def __init__(self, http_client: HttpClient):
