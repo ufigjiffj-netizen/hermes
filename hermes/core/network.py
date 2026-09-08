@@ -25,7 +25,7 @@ class HttpClient:
         if self._session:
             await self._session.close()
 
-    async def get(self, url: str, **kwargs: Any) -> Any:
+    async def get(self, url: str, return_text: bool = False, **kwargs: Any) -> Any:
         assert self._session is not None, (
             "HttpClient must be used as an async context manager"
         )
@@ -34,9 +34,11 @@ class HttpClient:
 
         async with self._session.get(url, **kwargs) as response:
             response.raise_for_status()
+            if return_text:
+                return await response.text()
             return await response.json()
 
-    async def post(self, url: str, **kwargs: Any) -> Any:
+    async def post(self, url: str, return_text: bool = False, **kwargs: Any) -> Any:
         assert self._session is not None, (
             "HttpClient must be used as an async context manager"
         )
@@ -45,4 +47,6 @@ class HttpClient:
 
         async with self._session.post(url, **kwargs) as response:
             response.raise_for_status()
+            if return_text:
+                return await response.text()
             return await response.json()
