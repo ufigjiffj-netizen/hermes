@@ -32,6 +32,6 @@ async def test_authenticator_with_secret_store():
 
 @pytest.mark.asyncio
 async def test_authenticator_with_global_secret_store():
-    _global_store.set("golden_key", "global_secret_789")
+    _global_store.set("golden_key", "dummy_key")
     authenticator = Authenticator()
-    assert authenticator.golden_key == "global_secret_789"
+    assert authenticator.golden_key == "dummy_key"

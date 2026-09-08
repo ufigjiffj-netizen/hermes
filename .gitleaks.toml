@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Allowlist documentation and specification files"
+paths = [
+    '''SPEC.*\.md''',
+]
