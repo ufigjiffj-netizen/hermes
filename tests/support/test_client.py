@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from aioresponses import aioresponses
 
@@ -73,3 +75,23 @@ def test_parse_tickets_missing():
 
     tickets = parse_tickets(html)
     assert len(tickets) == 0
+
+
+def test_parse_csrf_token_list():
+    from bs4 import BeautifulSoup
+
+    html = '<input name="csrf_token" value="abc" />'
+    soup = BeautifulSoup(html, "html.parser")
+    tag = soup.find("input")
+
+    with (
+        patch.object(tag, "get", return_value=["token1", "token2"]),
+        patch("bs4.BeautifulSoup.find", return_value=tag),
+    ):
+        assert parse_csrf_token(html) == "token1"
+
+    with (
+        patch.object(tag, "get", return_value=[]),
+        patch("bs4.BeautifulSoup.find", return_value=tag),
+    ):
+        assert parse_csrf_token(html) == ""
