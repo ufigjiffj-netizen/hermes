@@ -38,7 +38,7 @@ jobs:
         
     - name: Test with pytest (100% Coverage)
       run: |
-        pytest --cov=. --cov-fail-under=100
+        pytest --cov=hermes --cov-fail-under=100
         
     - name: Check for secrets
       uses: gitleaks/gitleaks-action@v2
