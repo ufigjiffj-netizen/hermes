@@ -44,17 +44,17 @@ async def test_run_app_cancelled():
         mock_db.return_value.connect = AsyncMock()
         mock_db.return_value.initialize = AsyncMock()
         mock_db.return_value.shutdown = AsyncMock()
-        
+
         mock_auth_class.return_value.apply = AsyncMock()
-        
+
         mock_poller_class.return_value.run = AsyncMock()
         mock_bumper_class.return_value.start = AsyncMock()
         mock_bumper_class.return_value.stop = AsyncMock()
-        
+
         mock_client = AsyncMock()
         mock_client._session = MagicMock()
         mock_client_class.return_value = mock_client
-        
+
         task = asyncio.create_task(run_app(args))
         # Let the task yield and reach the while True loop
         for _ in range(10):

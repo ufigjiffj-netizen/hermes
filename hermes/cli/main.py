@@ -52,8 +52,10 @@ async def run_app(args):
 
     try:
         await db.connect()
-        await db.initialize("CREATE TABLE IF NOT EXISTS processed_orders (order_id TEXT PRIMARY KEY);")
-        
+        await db.initialize(
+            "CREATE TABLE IF NOT EXISTS processed_orders (order_id TEXT PRIMARY KEY);"
+        )
+
         repo = OrderRepository(db)
         authenticator = Authenticator(golden_key)
 
@@ -62,17 +64,17 @@ async def run_app(args):
                 await authenticator.apply(client._session)
 
             poller = OrderPoller(
-                client=client, 
-                repo=repo, 
+                client=client,
+                repo=repo,
                 url="https://funpay.com/api/orders",  # Dummy URL for now
-                interval=poll_interval
+                interval=poll_interval,
             )
             bumper = BumpManager(bump_interval=bump_interval, client=client)
 
             logger.info("Starting poller and bumper...")
             await bumper.start()
             poller_task = asyncio.create_task(poller.run())
-            
+
             while True:
                 await asyncio.sleep(3600)
     except asyncio.CancelledError:
@@ -88,7 +90,9 @@ async def run_app(args):
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    )
     args = parse_args(sys.argv[1:])
     # If no command‑line arguments are supplied, show a short usage annotation.
     if len(sys.argv) <= 1:

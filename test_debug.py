@@ -8,6 +8,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_debug():
     from hermes.cli.main import parse_args, run_app
+
     logging.basicConfig(level=logging.INFO)
     args = parse_args(["--config", "dummy.yaml"])
     with (
@@ -22,14 +23,14 @@ async def test_debug():
         mock_db.return_value.connect = AsyncMock()
         mock_db.return_value.initialize = AsyncMock()
         mock_db.return_value.shutdown = AsyncMock()
-        
+
         mock_client = AsyncMock()
         mock_client.aenter.return_value = mock_client
         mock_client._session = MagicMock()
-        
+
         mock_client_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client_class.return_value.__aexit__ = AsyncMock()
-        
+
         task = asyncio.create_task(run_app(args))
         await asyncio.sleep(0.01)
         task.cancel()
@@ -37,5 +38,6 @@ async def test_debug():
             await task
         except asyncio.CancelledError as e:
             print("ERROR", repr(e))
+
 
 asyncio.run(test_debug())
