@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: [ "main", "dev" ]
 
 jobs:
   test:
@@ -12,6 +12,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     
     - name: Set up Python 3.11
       uses: actions/setup-python@v5
@@ -38,6 +40,6 @@ jobs:
         pytest --cov=. --cov-fail-under=100
         
     - name: Check for secrets
-      uses: zricethezav/gitleaks-action@v2
-      with:
-        fail: true
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
