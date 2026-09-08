@@ -28,6 +28,8 @@ Last reviewed: 2026-09-08
 - **No Heavy Queues**: Do not use Redis, RabbitMQ, Kafka, Celery. Use `asyncio.Queue` or similar built-ins.
 - **Config**: YAML based configuration. Boolean directives must use `enabled: true/false`.
 - **Plugins**: Must be separate from Core (`hermes/core` vs `hermes/plugins`).
+- **Language**: All code comments and variables MUST be in English.
+- **Git & Versioning**: Follow Git Flow (`develop`, `feature/*`). Branch names must be conventional. Use Semantic Versioning. Commit messages and PR descriptions must be concise and short.
 
 ## Lifecycle Scripts (to be added to pyproject.toml / Makefile)
 
