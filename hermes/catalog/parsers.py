@@ -85,7 +85,7 @@ def parse_listing_details(html: str) -> ListingDetails:
             detailed = text
         elif title == "Краткое описание":
             short = text
-            
+
         # FunPay sometimes puts text directly in param-item when there is no div inside
         if not text_div:
             # We can extract text excluding h5
@@ -96,5 +96,5 @@ def parse_listing_details(html: str) -> ListingDetails:
                 detailed = text
             elif title == "Краткое описание":
                 short = text
-                
+
     return ListingDetails(detailed_description=detailed, short_description=short)
