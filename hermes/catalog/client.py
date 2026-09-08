@@ -1,7 +1,7 @@
 from hermes.core.network import HttpClient
 
-from .models import Category, CommissionInfo, Listing
-from .parsers import parse_categories, parse_commission, parse_listings
+from .models import Category, CommissionInfo, Listing, ListingDetails
+from .parsers import parse_categories, parse_commission, parse_listings, parse_listing_details
 
 
 class CatalogClient:
@@ -21,3 +21,7 @@ class CatalogClient:
         url = "https://funpay.com/trade/info/"
         html = await self.http_client.get(url, return_text=True)
         return parse_commission(html)
+
+    async def get_listing_details(self, url: str) -> ListingDetails:
+        html = await self.http_client.get(url, return_text=True)
+        return parse_listing_details(html)

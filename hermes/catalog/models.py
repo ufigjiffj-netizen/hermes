@@ -21,3 +21,15 @@ class Listing:
 @dataclass
 class CommissionInfo:
     rate: float
+
+
+@dataclass
+class ListingDetails:
+    detailed_description: str
+    short_description: str
+
+
+@dataclass
+class ListingDetails:
+    detailed_description: str
+    short_description: str

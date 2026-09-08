@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 
-from .models import Category, CommissionInfo, Listing
+from .models import Category, CommissionInfo, Listing, ListingDetails
 
 
 class ParsingError(Exception):
@@ -68,3 +68,33 @@ def parse_commission(html: str) -> CommissionInfo:
         except ValueError:
             raise ParsingError("Invalid commission format")
     return CommissionInfo(rate=0.0)
+
+
+def parse_listing_details(html: str) -> ListingDetails:
+    soup = BeautifulSoup(html, "html.parser")
+    detailed = ""
+    short = ""
+    for param in soup.find_all("div", class_="param-item"):
+        h5 = param.find("h5")
+        if not h5:
+            continue
+        text_div = param.find("div")
+        text = text_div.text.strip() if text_div else ""
+        title = h5.text.strip()
+        if title == "Подробное описание":
+            detailed = text
+        elif title == "Краткое описание":
+            short = text
+            
+        # FunPay sometimes puts text directly in param-item when there is no div inside
+        if not text_div:
+            # We can extract text excluding h5
+            clone = param
+            clone.h5.decompose()
+            text = clone.text.strip()
+            if title == "Подробное описание":
+                detailed = text
+            elif title == "Краткое описание":
+                short = text
+                
+    return ListingDetails(detailed_description=detailed, short_description=short)
