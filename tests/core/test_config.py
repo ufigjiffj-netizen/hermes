@@ -42,3 +42,17 @@ def test_load_config_merging():
 def test_load_config_file_not_found():
     with pytest.raises(FileNotFoundError):
         load_config("nonexistent_file.yaml")
+
+
+def test_load_config_populates_secret_store():
+    from hermes.core.secrets import get_secret
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        yaml.dump({"funpay": {"golden_key": "my_secret_token"}}, f)
+        temp_file_name = f.name
+
+    try:
+        load_config(temp_file_name)
+        assert get_secret("golden_key") == "my_secret_token"
+    finally:
+        os.remove(temp_file_name)

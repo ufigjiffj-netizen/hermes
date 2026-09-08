@@ -82,8 +82,8 @@ async def test_send_message_error(db_manager):
         client = ChatClient(http_client, storage)
         with aioresponses() as m:
             m.post("https://funpay.com/chat/n1/", exception=ClientError("Error"))
-            res = await client.send_message("n1", "hello")
-            assert res is False
+            with pytest.raises(ClientError):
+                await client.send_message("n1", "hello")
 
 
 @pytest.mark.asyncio
@@ -92,3 +92,48 @@ async def test_save_messages_no_db(tmp_path):
     storage = ChatStorage(manager)
     with pytest.raises(RuntimeError):
         await storage.save_messages("n1", [])
+    with pytest.raises(RuntimeError):
+        await storage.get_messages("n1")
+
+
+@pytest.mark.asyncio
+async def test_chat_storage_incremental_preservation(db_manager):
+    from hermes.chat.models import Message
+
+    storage = ChatStorage(db_manager)
+    await storage.init_db()
+
+    msg1 = Message(
+        id="m1",
+        node_id="n1",
+        author="buyer",
+        text="first",
+        timestamp="2026-09-08 10:00",
+    )
+    msg2 = Message(
+        id="m2",
+        node_id="n1",
+        author="seller",
+        text="second",
+        timestamp="2026-09-08 10:01",
+    )
+
+    await storage.save_messages("n1", [msg1])
+    saved = await storage.get_messages("n1")
+    assert len(saved) == 1
+    assert saved[0].text == "first"
+
+    # Save second message in a separate call - msg1 must not be wiped!
+    await storage.save_messages("n1", [msg2])
+    saved_all = await storage.get_messages("n1")
+    assert len(saved_all) == 2
+    assert saved_all[0].id == "m1"
+    assert saved_all[1].id == "m2"
+
+    conn = db_manager.get_connection()
+    async with conn.execute(
+        "SELECT messages FROM chat_history WHERE node_id = 'n1'"
+    ) as cursor:
+        row = await cursor.fetchone()
+        assert "first" in row[0]
+        assert "second" in row[0]

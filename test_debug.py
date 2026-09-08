@@ -16,28 +16,27 @@ async def test_debug():
         patch("hermes.cli.main.DatabaseManager", new_callable=MagicMock) as mock_db,
         patch("hermes.cli.main.OrderRepository"),
         patch("hermes.cli.main.Authenticator"),
+        patch("hermes.cli.main.RateLimiter"),
+        patch("hermes.cli.main.DeliveryManager"),
         patch("hermes.cli.main.HttpClient") as mock_client_class,
-        patch("hermes.cli.main.OrderPoller"),
-        patch("hermes.cli.main.BumpManager"),
+        patch("hermes.cli.main.OrderPoller") as mock_poller_class,
+        patch("hermes.cli.main.BumpManager") as mock_bumper_class,
     ):
         mock_db.return_value.connect = AsyncMock()
         mock_db.return_value.initialize = AsyncMock()
         mock_db.return_value.shutdown = AsyncMock()
 
-        mock_client = AsyncMock()
-        mock_client.aenter.return_value = mock_client
-        mock_client._session = MagicMock()
+        mock_poller_class.return_value.run = AsyncMock()
+        mock_bumper_class.return_value.start = AsyncMock()
+        mock_bumper_class.return_value.stop = AsyncMock()
 
-        mock_client_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client_class.return_value.__aexit__ = AsyncMock()
+        mock_client = AsyncMock()
+        mock_client_class.return_value = mock_client
 
         task = asyncio.create_task(run_app(args))
         await asyncio.sleep(0.01)
         task.cancel()
         try:
             await task
-        except asyncio.CancelledError as e:
-            print("ERROR", repr(e))
-
-
-asyncio.run(test_debug())
+        except asyncio.CancelledError:
+            pass

@@ -81,6 +81,21 @@ def test_parse_commission():
     assert info_empty.rate == 0.0
 
 
+def test_parse_commission_calc_response():
+    from hermes.catalog.parsers import parse_commission_calc_response
+
+    res_direct = parse_commission_calc_response({"rate": 12.5})
+    assert res_direct.rate == 12.5
+
+    res_calc = parse_commission_calc_response(
+        {"price_buyer": 120.0}, seller_price=100.0
+    )
+    assert res_calc.rate == 20.0
+
+    res_empty = parse_commission_calc_response({})
+    assert res_empty.rate == 0.0
+
+
 def test_parse_listing_details():
     html_valid = """
     <html><body>

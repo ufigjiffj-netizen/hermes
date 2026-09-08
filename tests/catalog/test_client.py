@@ -39,12 +39,20 @@ async def test_get_commission():
     async with HttpClient() as http_client:
         client = CatalogClient(http_client)
         with aioresponses() as m:
-            m.get(
-                "https://funpay.com/trade/info/",
-                body='<html><body><span class="commission-rate">5.5%</span></body></html>',
+            m.post(
+                "https://funpay.com/lots/calc",
+                payload={"price": 100.0, "price_buyer": 115.0},
             )
-            info = await client.get_commission()
-            assert info.rate == 5.5
+            info = await client.get_commission(node_id="81", price=100.0)
+            assert info.rate == 15.0
+
+        with aioresponses() as m:
+            m.post(
+                "https://funpay.com/lots/calc",
+                payload="not a dict",
+            )
+            info_fallback = await client.get_commission(node_id="81")
+            assert info_fallback.rate == 0.0
 
 
 @pytest.mark.asyncio

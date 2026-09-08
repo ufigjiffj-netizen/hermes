@@ -83,3 +83,46 @@ async def test_order_poller_missing_id(
     orders = await poller.poll_once()
     assert len(orders) == 0
     mock_repo.is_order_processed.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_order_poller_run_loop_triggers_callback(
+    mock_sleep: AsyncMock, mock_repo: AsyncMock, mock_client: AsyncMock
+) -> None:
+    mock_callback = AsyncMock()
+    poller = OrderPoller(
+        client=mock_client,
+        repo=mock_repo,
+        url="http://test.funpay.com",
+        interval=5.0,
+        on_new_order=mock_callback,
+    )
+
+    mock_sleep.side_effect = lambda x: poller.stop()
+
+    await poller.run()
+
+    mock_callback.assert_called_once_with({"id": "ord123", "buyer": "test_user"})
+
+
+@pytest.mark.asyncio
+@patch("asyncio.sleep", new_callable=AsyncMock)
+async def test_order_poller_run_loop_callback_error(
+    mock_sleep: AsyncMock, mock_repo: AsyncMock, mock_client: AsyncMock
+) -> None:
+    mock_callback = AsyncMock(side_effect=RuntimeError("Delivery error"))
+    poller = OrderPoller(
+        client=mock_client,
+        repo=mock_repo,
+        url="http://test.funpay.com",
+        interval=5.0,
+        on_new_order=mock_callback,
+    )
+
+    mock_sleep.side_effect = lambda x: poller.stop()
+
+    # Should not raise even if callback raises
+    await poller.run()
+
+    mock_callback.assert_called_once()

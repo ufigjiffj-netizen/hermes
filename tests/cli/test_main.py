@@ -1,6 +1,6 @@
 import asyncio
 import signal
-import sys
+import warnings
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -32,11 +32,17 @@ async def test_shutdown_with_signal():
 @pytest.mark.asyncio
 async def test_run_app_cancelled():
     args = parse_args(["--config", "dummy.yaml"])
+    dummy_config = {
+        "delivery": {"auto_reply_text": "Auto delivered!", "send_url": "http://chat"},
+        "lots": {"node_ids": ["81"]},
+    }
     with (
-        patch("hermes.cli.main.load_config", return_value={}),
+        patch("hermes.cli.main.load_config", return_value=dummy_config),
         patch("hermes.cli.main.DatabaseManager", new_callable=MagicMock) as mock_db,
         patch("hermes.cli.main.OrderRepository"),
-        patch("hermes.cli.main.Authenticator") as mock_auth_class,
+        patch("hermes.cli.main.Authenticator"),
+        patch("hermes.cli.main.RateLimiter"),
+        patch("hermes.cli.main.DeliveryManager") as mock_delivery_class,
         patch("hermes.cli.main.HttpClient") as mock_client_class,
         patch("hermes.cli.main.OrderPoller") as mock_poller_class,
         patch("hermes.cli.main.BumpManager") as mock_bumper_class,
@@ -45,14 +51,11 @@ async def test_run_app_cancelled():
         mock_db.return_value.initialize = AsyncMock()
         mock_db.return_value.shutdown = AsyncMock()
 
-        mock_auth_class.return_value.apply = AsyncMock()
-
         mock_poller_class.return_value.run = AsyncMock()
         mock_bumper_class.return_value.start = AsyncMock()
         mock_bumper_class.return_value.stop = AsyncMock()
 
         mock_client = AsyncMock()
-        mock_client._session = MagicMock()
         mock_client_class.return_value = mock_client
 
         task = asyncio.create_task(run_app(args))
@@ -63,12 +66,22 @@ async def test_run_app_cancelled():
         # Should not raise
         await task
 
+        mock_delivery_class.return_value.set_auto_reply.assert_called_once_with(
+            "Auto delivered!"
+        )
+
+
+async def _dummy_run_app(args):
+    pass
+
 
 def test_main_normal():
     with patch("hermes.cli.main.parse_args") as mock_parse:
         mock_parse.return_value.config = "dummy.yaml"
         with (
-            patch("hermes.cli.main.run_app", new_callable=AsyncMock) as mock_run_app,
+            patch(
+                "hermes.cli.main.run_app", side_effect=_dummy_run_app
+            ) as mock_run_app,
             patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
         ):
             main()
@@ -79,7 +92,9 @@ def test_main_normal_linux():
     with patch("hermes.cli.main.parse_args") as mock_parse:
         mock_parse.return_value.config = "dummy.yaml"
         with (
-            patch("hermes.cli.main.run_app", new_callable=AsyncMock) as mock_run_app,
+            patch(
+                "hermes.cli.main.run_app", side_effect=_dummy_run_app
+            ) as mock_run_app,
             patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
             patch("sys.platform", "linux"),
         ):
@@ -91,7 +106,9 @@ def test_main_normal_win32():
     with patch("hermes.cli.main.parse_args") as mock_parse:
         mock_parse.return_value.config = "dummy.yaml"
         with (
-            patch("hermes.cli.main.run_app", new_callable=AsyncMock) as mock_run_app,
+            patch(
+                "hermes.cli.main.run_app", side_effect=_dummy_run_app
+            ) as mock_run_app,
             patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
             patch("sys.platform", "win32"),
         ):
@@ -104,15 +121,24 @@ def test_main_keyboard_interrupt():
         mock_parse.return_value.config = "dummy.yaml"
 
         loop_mock = MagicMock()
-        loop_mock.run_until_complete.side_effect = [KeyboardInterrupt(), None]
+        calls: list[object] = []
+
+        def _side_effect(coro: object) -> None:
+            if asyncio.iscoroutine(coro):
+                coro.close()
+            calls.append(coro)
+            if len(calls) == 1:
+                raise KeyboardInterrupt()
+
+        loop_mock.run_until_complete.side_effect = _side_effect
 
         # Patch run_app and shutdown so they don't produce unawaited coroutines
         with (
             patch("asyncio.new_event_loop", return_value=loop_mock),
             patch("asyncio.set_event_loop"),
             patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
-            patch("hermes.cli.main.run_app"),
-            patch("hermes.cli.main.shutdown"),
+            patch("hermes.cli.main.run_app", side_effect=_dummy_run_app),
+            patch("hermes.cli.main.shutdown", side_effect=_dummy_run_app),
         ):
             main()
             assert loop_mock.run_until_complete.call_count == 2
@@ -126,27 +152,79 @@ def test_main_signal_not_implemented():
 
         loop_mock = MagicMock()
         loop_mock.add_signal_handler.side_effect = NotImplementedError()
-        loop_mock.run_until_complete = MagicMock()
+
+        def _clean_complete(coro):
+            if asyncio.iscoroutine(coro):
+                coro.close()
+
+        loop_mock.run_until_complete.side_effect = _clean_complete
 
         with (
             patch("asyncio.new_event_loop", return_value=loop_mock),
             patch("asyncio.set_event_loop"),
             patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
-            patch("hermes.cli.main.run_app"),
+            patch("hermes.cli.main.run_app", side_effect=_dummy_run_app),
         ):
             main()
-            loop_mock.run_until_complete.assert_called_once()
+            assert loop_mock.run_until_complete.call_count == 1
 
 
 def test_main_no_args():
-    with patch("sys.argv", ["hermes"]):
-        with pytest.raises(SystemExit) as excinfo:
-            main()
-        assert excinfo.value.code == 0
+    with (
+        patch("hermes.cli.main.run_app", side_effect=_dummy_run_app) as mock_run_app,
+        patch("sys.argv", ["hermes"]),
+    ):
+        main()
+        mock_run_app.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_run_app_detects_default_config_yaml(tmp_path, monkeypatch):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("storage:\n  db_path: custom.db\n")
+
+    monkeypatch.chdir(tmp_path)
+    args = parse_args([])
+    assert args.config is None
+
+    with (
+        patch("hermes.cli.main.load_config") as mock_load,
+        patch("hermes.cli.main.DatabaseManager", new_callable=MagicMock) as mock_db,
+        patch("hermes.cli.main.OrderRepository"),
+        patch("hermes.cli.main.Authenticator"),
+        patch("hermes.cli.main.RateLimiter"),
+        patch("hermes.cli.main.DeliveryManager"),
+        patch("hermes.cli.main.HttpClient") as mock_client_class,
+        patch("hermes.cli.main.OrderPoller") as mock_poller_class,
+        patch("hermes.cli.main.BumpManager") as mock_bumper_class,
+    ):
+        mock_db.return_value.connect = AsyncMock()
+        mock_db.return_value.initialize = AsyncMock()
+        mock_db.return_value.shutdown = AsyncMock()
+
+        mock_poller_class.return_value.run = AsyncMock()
+        mock_bumper_class.return_value.start = AsyncMock()
+        mock_bumper_class.return_value.stop = AsyncMock()
+
+        mock_client = AsyncMock()
+        mock_client_class.return_value = mock_client
+
+        mock_load.return_value = {}
+        task = asyncio.create_task(run_app(args))
+        for _ in range(10):
+            await asyncio.sleep(0.01)
+        task.cancel()
+        await task
+
+        mock_load.assert_called_once_with("config.yaml")
 
 
 def test_module_execution():
-    with patch("sys.modules", sys.modules), patch("sys.argv", ["hermes", "--help"]):
+    with (
+        patch("sys.argv", ["hermes", "--help"]),
+        warnings.catch_warnings(),
+    ):
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
         import runpy
 
         try:

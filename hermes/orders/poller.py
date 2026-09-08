@@ -1,8 +1,12 @@
 import asyncio
+import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from hermes.core.network import HttpClient
 from hermes.orders.repository import OrderRepository
+
+logger = logging.getLogger(__name__)
 
 
 class OrderPoller:
@@ -12,11 +16,13 @@ class OrderPoller:
         repo: OrderRepository,
         url: str,
         interval: float = 10.0,
+        on_new_order: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
     ) -> None:
         self.client = client
         self.repo = repo
         self.url = url
         self.interval = interval
+        self.on_new_order = on_new_order
         self._running = False
 
     async def poll_once(self) -> list[dict[str, Any]]:
@@ -43,7 +49,23 @@ class OrderPoller:
         """Runs the poller in an async loop."""
         self._running = True
         while self._running:
-            await self.poll_once()
+            new_orders = await self.poll_once()
+            if self.on_new_order and new_orders:
+                for order in new_orders:
+                    try:
+                        await self.on_new_order(order)
+                    except (
+                        ConnectionError,
+                        TimeoutError,
+                        ValueError,
+                        RuntimeError,
+                        TypeError,
+                        KeyError,
+                    ) as e:
+                        logger.error(
+                            "Error processing order %s: %s", order.get("id"), e
+                        )
+
             await asyncio.sleep(self.interval)
 
     def stop(self) -> None:

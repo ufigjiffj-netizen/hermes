@@ -1,14 +1,17 @@
 import argparse
 import asyncio
 import logging
+import os
 import signal
 import sys
 
 from hermes.core.auth import Authenticator
 from hermes.core.config import load_config
 from hermes.core.network import HttpClient
+from hermes.core.rate_limit import RateLimiter
 from hermes.core.storage import DatabaseManager
 from hermes.lots.bump import BumpManager
+from hermes.orders.delivery import DeliveryManager
 from hermes.orders.poller import OrderPoller
 from hermes.orders.repository import OrderRepository
 
@@ -17,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Hermes CLI")
-    parser.add_argument("--config", help="Path to config file", required=False)
+    parser.add_argument(
+        "--config", help="Path to config file", required=False, default=None
+    )
     return parser.parse_args(args)
 
 
@@ -39,14 +44,25 @@ async def shutdown(
 
 async def run_app(args: argparse.Namespace) -> None:
     """Main async entrypoint."""
-    logger.info("Starting Hermes with config: %s", args.config)
-    config = load_config(args.config)
+    config_path = args.config
+    if config_path is None and os.path.exists("config.yaml"):
+        config_path = "config.yaml"
+
+    logger.info("Starting Hermes with config: %s", config_path)
+    config = load_config(config_path)
 
     db_path = config.get("storage", {}).get("db_path", "hermes.db")
     golden_key = config.get("funpay", {}).get("golden_key", "")
     proxy = config.get("funpay", {}).get("proxy")
     bump_interval = config.get("lots", {}).get("bump_interval", 10.0)
+    bump_node_ids = config.get("lots", {}).get("node_ids", [])
     poll_interval = config.get("orders", {}).get("poll_interval", 10.0)
+    orders_url = config.get("orders", {}).get(
+        "orders_url", "https://funpay.com/api/orders"
+    )
+    send_url = config.get("delivery", {}).get("send_url", "https://funpay.com/chat/")
+    auto_reply_text = config.get("delivery", {}).get("auto_reply_text", "")
+    rate_limit_rps = float(config.get("network", {}).get("rate_limit_rps", 5.0))
 
     db = DatabaseManager(db_path)
     poller = None
@@ -60,19 +76,28 @@ async def run_app(args: argparse.Namespace) -> None:
         )
 
         repo = OrderRepository(db)
-        authenticator = Authenticator(golden_key)
+        authenticator = Authenticator(golden_key=golden_key)
+        rate_limiter = RateLimiter(rps=rate_limit_rps)
 
-        async with HttpClient(proxy=proxy) as client:
-            if client._session:
-                await authenticator.apply(client._session)
+        async with HttpClient(
+            proxy=proxy,
+            rate_limiter=rate_limiter,
+            authenticator=authenticator,
+        ) as client:
+            delivery = DeliveryManager(client=client, send_url=send_url)
+            if auto_reply_text:
+                delivery.set_auto_reply(auto_reply_text)
 
             poller = OrderPoller(
                 client=client,
                 repo=repo,
-                url="https://funpay.com/api/orders",
+                url=orders_url,
                 interval=poll_interval,
+                on_new_order=delivery.auto_reply if auto_reply_text else None,
             )
-            bumper = BumpManager(bump_interval=bump_interval, client=client)
+            bumper = BumpManager(
+                bump_interval=bump_interval, client=client, node_ids=bump_node_ids
+            )
 
             logger.info("Starting poller and bumper...")
             await bumper.start()
@@ -87,7 +112,8 @@ async def run_app(args: argparse.Namespace) -> None:
         if bumper:
             await bumper.stop()
         if poller_task:
-            await poller_task
+            poller_task.cancel()
+            await asyncio.gather(poller_task, return_exceptions=True)
     finally:
         await db.shutdown()
 
@@ -97,11 +123,6 @@ def main() -> None:
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
     args = parse_args(sys.argv[1:])
-    # If no command‑line arguments are supplied, show a short usage annotation.
-    if len(sys.argv) <= 1:
-        # Simple guidance for users invoking hermes without any flags.
-        print("Usage: hermes [--config <path>]\n\nRun 'hermes -h' for full options.")
-        sys.exit(0)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 

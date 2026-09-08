@@ -1,9 +1,13 @@
+import logging
+
 import aiohttp
 
 from hermes.core.network import HttpClient
 
 from .models import Dialog, Message
 from .storage import ChatStorage
+
+logger = logging.getLogger(__name__)
 
 
 class ChatClient:
@@ -47,5 +51,6 @@ class ChatClient:
         try:
             await self.http_client.post(url, json=data)
             return True
-        except aiohttp.ClientError:
-            return False
+        except aiohttp.ClientError as e:
+            logger.error("Network error sending message to node %s: %s", node_id, e)
+            raise

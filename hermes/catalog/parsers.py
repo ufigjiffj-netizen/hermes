@@ -1,3 +1,5 @@
+from typing import Any
+
 from bs4 import BeautifulSoup
 
 from .models import Category, CommissionInfo, Listing, ListingDetails
@@ -67,6 +69,19 @@ def parse_commission(html: str) -> CommissionInfo:
             return CommissionInfo(rate=float(text))
         except ValueError:
             raise ParsingError("Invalid commission format")
+    return CommissionInfo(rate=0.0)
+
+
+def parse_commission_calc_response(
+    data: dict[str, Any], seller_price: float = 100.0
+) -> CommissionInfo:
+    """Parses JSON calculation response from FunPay lots/calc endpoint."""
+    if "rate" in data:
+        return CommissionInfo(rate=float(data["rate"]))
+    if "price_buyer" in data and seller_price > 0:
+        buyer_price = float(data["price_buyer"])
+        rate = round(((buyer_price - seller_price) / seller_price) * 100, 2)
+        return CommissionInfo(rate=rate)
     return CommissionInfo(rate=0.0)
 
 

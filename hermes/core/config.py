@@ -3,6 +3,8 @@ from typing import Any
 
 import yaml
 
+from hermes.core.secrets import _global_store
+
 DEFAULT_CONFIG: dict[str, Any] = {
     "version": "1.0",
     "app": {"name": "hermes", "port": 8080},
@@ -33,4 +35,8 @@ def load_config(path: str | None = None) -> dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
         user_config = yaml.safe_load(f) or {}
 
-    return _merge_configs(DEFAULT_CONFIG, user_config)
+    config = _merge_configs(DEFAULT_CONFIG, user_config)
+    golden_key = config.get("funpay", {}).get("golden_key")
+    if golden_key:
+        _global_store.set("golden_key", str(golden_key))
+    return config
