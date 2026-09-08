@@ -45,9 +45,8 @@ def main():
     asyncio.set_event_loop(loop)
 
     # Setup signal handlers
-    # Note: Windows doesn't fully support all signals.
     signals = (
-        (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+        (getattr(signal, "SIGHUP", signal.SIGTERM), signal.SIGTERM, signal.SIGINT)
         if sys.platform != "win32"
         else (signal.SIGINT, signal.SIGTERM)
     )

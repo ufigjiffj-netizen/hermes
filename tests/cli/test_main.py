@@ -50,6 +50,30 @@ def test_main_normal():
             mock_run_app.assert_called_once()
 
 
+def test_main_normal_linux():
+    with patch("hermes.cli.main.parse_args") as mock_parse:
+        mock_parse.return_value.config = "dummy.yaml"
+        with (
+            patch("hermes.cli.main.run_app", new_callable=AsyncMock) as mock_run_app,
+            patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
+            patch("sys.platform", "linux"),
+        ):
+            main()
+            mock_run_app.assert_called_once()
+
+
+def test_main_normal_win32():
+    with patch("hermes.cli.main.parse_args") as mock_parse:
+        mock_parse.return_value.config = "dummy.yaml"
+        with (
+            patch("hermes.cli.main.run_app", new_callable=AsyncMock) as mock_run_app,
+            patch("sys.argv", ["hermes", "--config", "dummy.yaml"]),
+            patch("sys.platform", "win32"),
+        ):
+            main()
+            mock_run_app.assert_called_once()
+
+
 def test_main_keyboard_interrupt():
     with patch("hermes.cli.main.parse_args") as mock_parse:
         mock_parse.return_value.config = "dummy.yaml"
