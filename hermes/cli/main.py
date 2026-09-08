@@ -94,7 +94,6 @@ def main():
     if len(sys.argv) <= 1:
         # Simple guidance for users invoking hermes without any flags.
         print("Usage: hermes [--config <path>]\n\nRun 'hermes -h' for full options.")
-        return
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
