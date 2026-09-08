@@ -4,7 +4,7 @@
   become: yes
   vars:
     app_user: hermes
-    app_dir: /opt/hermes
+    app_dir: /etc/hermes
     repo_url: https://github.com/ufigjiffj-netizen/hermes.git
     branch: main
     funpay_golden_key: ""  # Set this in inventory or via --extra-vars
