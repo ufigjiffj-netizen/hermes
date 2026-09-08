@@ -1,9 +1,11 @@
 import asyncio
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+
+from hermes.core.network import HttpClient
 from hermes.orders.poller import OrderPoller
 from hermes.orders.repository import OrderRepository
-from hermes.core.network import HttpClient
 
 
 @pytest.fixture

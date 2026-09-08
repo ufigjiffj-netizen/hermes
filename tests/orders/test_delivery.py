@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock
-from hermes.orders.delivery import DeliveryManager
+
+import pytest
+
 from hermes.core.network import HttpClient
+from hermes.orders.delivery import DeliveryManager
 
 
 @pytest.fixture

@@ -1,5 +1,5 @@
-from hermes.orders.repository import OrderRepository
-from hermes.orders.poller import OrderPoller
 from hermes.orders.delivery import DeliveryManager
+from hermes.orders.poller import OrderPoller
+from hermes.orders.repository import OrderRepository
 
-__all__ = ["OrderRepository", "OrderPoller", "DeliveryManager"]
+__all__ = ["DeliveryManager", "OrderPoller", "OrderRepository"]

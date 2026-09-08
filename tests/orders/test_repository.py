@@ -1,6 +1,8 @@
+from collections.abc import AsyncGenerator
+
 import pytest
 import pytest_asyncio
-from typing import AsyncGenerator
+
 from hermes.core.storage import DatabaseManager
 from hermes.orders.repository import OrderRepository
 
