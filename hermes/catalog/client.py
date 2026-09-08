@@ -8,6 +8,7 @@ from .parsers import (
     parse_listings,
 )
 
+
 class CatalogClient:
     def __init__(self, http_client: HttpClient):
         self.http_client = http_client
