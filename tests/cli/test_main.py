@@ -31,12 +31,37 @@ async def test_shutdown_with_signal():
 
 @pytest.mark.asyncio
 async def test_run_app_cancelled():
-    args = parse_args([])
-    task = asyncio.create_task(run_app(args))
-    await asyncio.sleep(0.01)
-    task.cancel()
-    # Should not raise
-    await task
+    args = parse_args(["--config", "dummy.yaml"])
+    with (
+        patch("hermes.cli.main.load_config", return_value={}),
+        patch("hermes.cli.main.DatabaseManager", new_callable=MagicMock) as mock_db,
+        patch("hermes.cli.main.OrderRepository"),
+        patch("hermes.cli.main.Authenticator") as mock_auth_class,
+        patch("hermes.cli.main.HttpClient") as mock_client_class,
+        patch("hermes.cli.main.OrderPoller") as mock_poller_class,
+        patch("hermes.cli.main.BumpManager") as mock_bumper_class,
+    ):
+        mock_db.return_value.connect = AsyncMock()
+        mock_db.return_value.initialize = AsyncMock()
+        mock_db.return_value.shutdown = AsyncMock()
+        
+        mock_auth_class.return_value.apply = AsyncMock()
+        
+        mock_poller_class.return_value.run = AsyncMock()
+        mock_bumper_class.return_value.start = AsyncMock()
+        mock_bumper_class.return_value.stop = AsyncMock()
+        
+        mock_client = AsyncMock()
+        mock_client._session = MagicMock()
+        mock_client_class.return_value = mock_client
+        
+        task = asyncio.create_task(run_app(args))
+        # Let the task yield and reach the while True loop
+        for _ in range(10):
+            await asyncio.sleep(0.01)
+        task.cancel()
+        # Should not raise
+        await task
 
 
 def test_main_normal():
