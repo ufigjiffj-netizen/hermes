@@ -1,0 +1,7 @@
+[allowlist]
+paths = [
+    '''SPEC.md''',
+    '''SPEC-core.md''',
+    '''SPEC-auth.md''',
+    '''SPEC-storage.md'''
+]
